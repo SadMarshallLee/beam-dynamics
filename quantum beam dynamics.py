@@ -110,17 +110,7 @@ def distance_for_a_width(r0, r_fin, energy, n, l):
     ldb = de_broglie_wavelength(pz)
     rho_mid0 = rho_mid(r0, M)
     return (2 * np.pi * r_fin * rho_mid0) / (ldb * M)
-
-# Построение графиков
-def plot_graph(x, y, xlabel, ylabel, title, filename=None):
-    plt.plot(x, y, label=title)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.legend()
-    if filename:
-        plt.savefig(filename, dpi=600)
-    
-
+   
 # Функция для построения общей картинки со всеми графиками
 def plot_all_graphs(z, r_mid, energy_profile, pz_profile, r_mid_with_pz):
     plt.figure(figsize=(10, 8))
@@ -154,6 +144,7 @@ def plot_all_graphs(z, r_mid, energy_profile, pz_profile, r_mid_with_pz):
     plt.legend()
 
     plt.tight_layout()
+    plt.savefig("result.png")
     plt.show()
 
 # Основной блок
@@ -192,9 +183,3 @@ r_mid_with_pz = real_packet_width_with_pz(z, pz_profile, r0, n, l)
 
 # Построение общей картинки со всеми графиками
 plot_all_graphs(z, r_mid, energy_profile, pz_profile, r_mid_with_pz)
-
-# Построение графиков
-plot_graph(z, r_mid, "Длина распространения, м", "Ширина пакета, мм", "Размеры волнового пакета вдоль оси z", 'filename.png')
-plot_graph(z, energy_profile, 'z (м)', 'Энергия (МэВ)', 'Энергия вдоль оси z')
-plot_graph(z, pz_profile, 'z (м)', 'pz (МэВ/c)', 'Продольный импульс (pz)')
-plot_graph(z, r_mid_with_pz, "Длина распространения, м", "Ширина пакета, мм", "Ширина пакета с учетом изменения pz", 'width_with_pz.png')
