@@ -93,9 +93,12 @@ def real_packet_width_with_pz(z_values, pz_profile, v_profile, r0, n, l):
     new_z = np.zeros_like(z_values)
     for i in range(1, len(z_values)):
         new_z[i] = integ.simps(v_profile[:i+1], z_values[:i+1])
+    
+    # Переводим pz из МэВ в эВ
+    pz_profile_eV = pz_profile * 1e6
 
     print("Значения new_z (в метрах):", new_z)
-    ldb_values = [de_broglie_wavelength(pz) for pz in pz_profile]
+    ldb_values = [de_broglie_wavelength(pz) for pz in pz_profile_eV]
     rho_mid0 = rho_mid(r0, M)
     ksi = coherence_length(rho_mid0)  # начальная длина когерентности
 
