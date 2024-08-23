@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.constants as const
 from scipy import integrate as integ
-from scipy.interpolate import CubicSpline
 
 # Предварительно вычисляем константы
 HC_MeV_mm = 6.582 * 10**(-22) * 2.998 * 10**(11)  # Планк x скорость света в МэВ мм
@@ -18,12 +17,12 @@ e = const.e
 phi = np.pi / 2
 W_MeV = 4.6e-6
 f = 2856e6  # частота
-t = 10e-12  # время
+t = 350e-12  # время
 
 # Функция для расчета продольного импульса и скорости
 def longitudinal_momentum(W_MeV, Me_MeV, c):
     if W_MeV <= Me_MeV:
-        pz_MeV = np.sqrt(Me_MeV - W_MeV)
+        pz_MeV = np.sqrt(2 * Me_MeV * W_MeV)
         v = pz_MeV / (Me_MeV * c)
     elif W_MeV <= 10 * Me_MeV:
         under_sqrt = W_MeV**2 - Me_MeV**2
@@ -44,9 +43,7 @@ def transverse_momentum(r0):
 
 # Длина волны де Бройля
 def de_broglie_wavelength(pz):
-    if pz == 0:
-        return np.nan  # избегаем деления на ноль
-    return HC_MeV_mm / pz
+    return HC_MeV_mm / pz if pz > 0 else np.nan
 
 # Средний начальный размер пакета, мм
 def rho_mid(r0, M):
@@ -54,7 +51,7 @@ def rho_mid(r0, M):
 
 # Угол раскрытия электрона
 def theta(pt, pz):
-    return pt / pz * 180 / np.pi
+    return pt / pz * 180 / np.pi if pz > 0 else np.nan
 
 # Расплывание в ближней зоне
 def fresnel_zone_packet_width(z, ldb, rho_mid0, M):
@@ -76,8 +73,6 @@ def real_packet_width(z_values, W_MeV, r0, n, l):
     M = fundamental_mode(n, l)
     pz, _ = longitudinal_momentum(W_MeV, ME_MeV, c)
     ldb = de_broglie_wavelength(pz)
-    if np.isnan(ldb):
-        return np.nan * np.ones_like(z_values)
     rho_mid0 = rho_mid(r0, M)
     ksi = coherence_length(rho_mid0)  # начальная длина когерентности
 
@@ -87,25 +82,28 @@ def real_packet_width(z_values, W_MeV, r0, n, l):
             width.append(fresnel_zone_packet_width(z, ldb, rho_mid0, M))
         else:
             width.append(far_field_packet_width(z, ldb, rho_mid0, M))
-
+    
     return width
 
-# Расчет ширины пакета для заданной длины с учетом изменения pz
-def real_packet_width_with_pz(z_values, pz_profile, r0, n, l):
+# Расчет ширины пакета для заданной длины с учетом изменения pz  
+def real_packet_width_with_pz(z_values, pz_profile, v_profile, r0, n, l):
     M = fundamental_mode(n, l)
+
+    # Интегрируем профиль скорости по z для создания new_z
+    new_z = integ.cumtrapz(v_profile, z_values, initial=0)  # Интегрирование скорости по z
     ldb_values = [de_broglie_wavelength(pz) for pz in pz_profile]
-    if np.isnan(ldb_values).any():
-        return np.nan * np.ones_like(z_values)
     rho_mid0 = rho_mid(r0, M)
     ksi = coherence_length(rho_mid0)  # начальная длина когерентности
 
     width_with_pz = []
-    for z, ldb in zip(z_values, ldb_values):
-        if z <= ksi:
+    for z, ldb in zip(new_z, ldb_values):
+        if np.isnan(ldb):
+            width_with_pz.append(np.nan)
+        elif z <= ksi:
             width_with_pz.append(fresnel_zone_packet_width(z, ldb, rho_mid0, M))
         else:
             width_with_pz.append(far_field_packet_width(z, ldb, rho_mid0, M))
-
+    
     return width_with_pz
 
 # Расчет расстояния для заданной ширины пакета
@@ -113,103 +111,86 @@ def distance_for_a_width(r0, r_fin, energy, n, l):
     M = fundamental_mode(n, l)
     pz, _ = longitudinal_momentum(energy, ME_MeV, const.c)
     ldb = de_broglie_wavelength(pz)
-    if np.isnan(ldb):
-        return np.nan
     rho_mid0 = rho_mid(r0, M)
     return (2 * np.pi * r_fin * rho_mid0) / (ldb * M)
-
-# Построение графиков
-def plot_graph(x, y, xlabel, ylabel, title, filename=None):
-    plt.plot(x, y, label=title)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.legend()
-    if filename:
-        plt.savefig(filename, dpi=600)
-
-# Функция для построения общей картинки со всеми графиками
-def plot_all_graphs(z, r_mid, energy_profile, pz_profile, r_mid_with_pz):
-    plt.figure(figsize=(10, 8))
+   
+# Функция для построения общей картинки со всеми графиками (добавлен новый график)
+def plot_all_graphs(z, r_mid, energy_profile, pz_profile, r_mid_with_pz, v_profile):
+    plt.figure(figsize=(12, 10))
 
     # График 1: Размеры волнового пакета вдоль оси z
-    plt.subplot(2, 2, 1)
+    plt.subplot(2, 3, 1)
     plt.plot(z, r_mid, label="Размеры волнового пакета вдоль оси z")
     plt.xlabel("Длина распространения, м")
     plt.ylabel("Ширина пакета, мм")
     plt.legend()
 
     # График 2: Энергия вдоль оси z
-    plt.subplot(2, 2, 2)
+    plt.subplot(2, 3, 2)
     plt.plot(z, energy_profile, label="Энергия вдоль оси z")
     plt.xlabel('z (м)')
     plt.ylabel('Энергия (МэВ)')
     plt.legend()
 
     # График 3: Продольный импульс (pz)
-    plt.subplot(2, 2, 3)
+    plt.subplot(2, 3, 3)
     plt.plot(z, pz_profile, label="Продольный импульс (pz)")
     plt.xlabel('z (м)')
     plt.ylabel('pz (МэВ/c)')
     plt.legend()
 
     # График 4: Ширина пакета с учетом изменения pz
-    plt.subplot(2, 2, 4)
+    plt.subplot(2, 3, 4)
     plt.plot(z, r_mid_with_pz, label="Ширина пакета с учетом изменения pz")
     plt.xlabel("Длина распространения, мм")
     plt.ylabel("Ширина пакета, мм")
     plt.legend()
 
+    # График 5: Скорость вдоль оси z
+    plt.subplot(2, 3, 5)
+    plt.plot(z, v_profile, label="Скорость вдоль оси z")
+    plt.xlabel('z (м)')
+    plt.ylabel('Скорость (м/с)')
+    plt.legend()
+
     plt.tight_layout()
+    plt.savefig("result.png")
     plt.show()
 
 # Основной блок
 r0 = 1e-9  # размер пакета в м
 n = 3
 l = 1
+step_of_z = (z[1] - z[0])
+length = z[-1]
 
 # Расчет импульса и скорости
 pz_MeV, v = longitudinal_momentum(W_MeV, ME_MeV, c)
 
-print(f"Initial pz_MeV: {pz_MeV}")
-print(f"Initial velocity: {v}")
-
 if np.isnan(v) or v == 0:
     print("Ошибка: скорость v равна NaN или нулю.")
-    dE = energy_change_profile = pz_profile = np.nan * np.ones_like(z)
+    dE = energy_change_profile = pz_profile = v_profile = np.nan * np.ones_like(z)
 else:
     denominator = f * np.mean(z) / (2 * v) if v != 0 else 1
     T = np.sin(denominator) / denominator if denominator != 0 else 0
-
+    
     try:
-        # Интерполяция кубическими сплайнами
-        cs = CubicSpline(z, Ez)
-        z_interp = np.linspace(z.min(), z.max(), num=1000)
-        Ez_interp = cs(z_interp)
-        
-        # Интеграция методом трапеций по интерполированным данным
-        integral_result = integ.trapz(Ez_interp, z_interp)
+        integral_result = integ.simps(Ez, z)
         dE = e * integral_result * T * np.cos(f * t + phi)
-
-        delta_z = z[1] - z[0]
+        
+        delta_z = (z[1] - z[0])
         energy_profile = np.cumsum(Ez * delta_z) + W_MeV
+        
+        energy_change_profile = energy_profile - W_MeV + dE
+        pz_profile = np.array([longitudinal_momentum(E, ME_MeV, c)[0] for E in energy_profile])
+        v_profile = np.array([longitudinal_momentum(E, ME_MeV, c)[1] for E in energy_profile])
+        
+    except Exception as ex:
+        print(f"Ошибка при вычислении интеграла: {ex}")
+        dE = energy_change_profile = pz_profile = v_profile = np.nan * np.ones_like(z)
 
-        energy_change_profile = energy_profile - W_MeV
-        pz_profile = [longitudinal_momentum(e, ME_MeV, c)[0] for e in energy_profile]
+r_mid = real_packet_width(z, W_MeV, r0, n, l)
+r_mid_with_pz = real_packet_width_with_pz(z, pz_profile, v_profile, r0, n, l)
 
-        # Расчет размеров волнового пакета
-        r_mid = real_packet_width(z, W_MeV, r0, n, l)
-        r_mid_with_pz = real_packet_width_with_pz(z, pz_profile, r0, n, l)
-
-        # Проверка переменных перед вызовом функции plot_all_graphs
-        print(f"r_mid: {r_mid}")
-        print(f"r_mid_with_pz: {r_mid_with_pz}")
-
-        # Построение графиков
-        plot_all_graphs(z, r_mid, energy_profile, pz_profile, r_mid_with_pz)
-        plot_graph(z, r_mid, "Длина распространения, м", "Ширина пакета, мм", "Размеры волнового пакета вдоль оси z", 'filename.png')
-        plot_graph(z, energy_profile, 'z (м)', 'Энергия (МэВ)', 'Энергия вдоль оси z')
-        plot_graph(z, pz_profile, 'z (м)', 'pz (МэВ/c)', 'Продольный импульс (pz)')
-        plot_graph(z, r_mid_with_pz, "Длина распространения, м", "Ширина пакета, мм", "Ширина пакета с учетом изменения pz", 'width_with_pz.png')
-
-    except Exception as e:
-        print(f"Ошибка при расчете: {e}")   
+# Построение общей картинки со всеми графиками (добавлен v_profile)
+plot_all_graphs(z, r_mid, energy_profile, pz_profile, r_mid_with_pz, v_profile)

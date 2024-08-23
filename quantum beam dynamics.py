@@ -17,7 +17,7 @@ e = const.e
 phi = np.pi / 2
 W_MeV = 4.6e-6
 f = 2856e6  # частота
-t = 10e-12  # время
+t = 350e-12  # время
 
 # Функция для расчета продольного импульса и скорости
 def longitudinal_momentum(W_MeV, Me_MeV, c):
@@ -88,6 +88,9 @@ def real_packet_width(z_values, W_MeV, r0, n, l):
 # Расчет ширины пакета для заданной длины с учетом изменения pz 
 def real_packet_width_with_pz(z_values, pz_profile, r0, n, l):
     M = fundamental_mode(n, l)
+    pz, v = longitudinal_momentum(W_MeV, ME_MeV, c)
+    integ_result = integ.simps(v, z_values)
+    print(integ_result)
     ldb_values = [de_broglie_wavelength(pz) for pz in pz_profile]
     rho_mid0 = rho_mid(r0, M)
     ksi = coherence_length(rho_mid0)  # начальная длина когерентности
@@ -151,7 +154,7 @@ def plot_all_graphs(z, r_mid, energy_profile, pz_profile, r_mid_with_pz):
 r0 = 1e-9  # размер пакета в м
 n = 3
 l = 1
-step_of_z = z[1] - z[0]
+step_of_z = (z[1] - z[0])
 length = z[-1]
 
 # Расчет импульса и скорости
@@ -168,7 +171,7 @@ else:
         integral_result = integ.simps(Ez, z)
         dE = e * integral_result * T * np.cos(f * t + phi)
         
-        delta_z = z[1] - z[0]
+        delta_z = (z[1] - z[0])
         energy_profile = np.cumsum(Ez * delta_z) + W_MeV
         
         energy_change_profile = energy_profile - W_MeV + dE
