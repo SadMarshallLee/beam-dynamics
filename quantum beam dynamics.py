@@ -102,7 +102,7 @@ def real_packet_width_with_pz(z_values, pz_profile, v_profile, r0, n, l):
     # Интегрируем профиль скорости по z для создания new_z
     new_z = np.zeros_like(z_values)
     for i in range(1, len(z_values)):
-        new_z[i] = integ.simps(v_profile[:i+1], z_values[:i+1])
+        new_z[i] = integ.simpson(y=v_profile[:i+1], x=z_values[:i+1])
     
     # Переводим pz из МэВ в эВ
     pz_profile_eV = pz_profile * 1e6
@@ -199,7 +199,7 @@ else:
     T = np.sin(denominator) / denominator if denominator != 0 else 0
     
     try:
-        integral_result = integ.simps(Ez_new, z_new)
+        integral_result = integ.simpson(y=Ez_new, x=z_new)
         dE = e * integral_result * T * np.cos(f * t + phi)
         
         delta_z = (z_new[1] - z_new[0])
@@ -216,5 +216,5 @@ else:
 r_mid = real_packet_width(z_new, W_MeV, r0, n, l)
 r_mid_with_pz = real_packet_width_with_pz(z_new, pz_profile, v_profile, r0, n, l)
 
-# Построение общей картинки со всеми графиками (добавлен v_profile)
+# Построение общей картинки со всеми графиками
 plot_all_graphs(z_new, r_mid, energy_profile, pz_profile, r_mid_with_pz, v_profile)
