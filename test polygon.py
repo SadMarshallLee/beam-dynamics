@@ -174,7 +174,7 @@ def plot_all_graphs(z, r_mid, energy_profile, pz_profile, r_mid_with_pz, v_profi
     plt.show()
 
 # Основной блок
-r0 = 1e-6  # размер пакета в м
+r0 = 1e-9  # размер пакета в м
 n = 3
 l = 1
 step_of_z = (z[1] - z[0])
