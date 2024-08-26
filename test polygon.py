@@ -25,7 +25,7 @@ def longitudinal_momentum(W_MeV, Me_MeV, c):
     if W_MeV < Me_MeV:
         # Энергия меньше энергии покоя, низкие скорости
         pz_MeV = np.sqrt(2 * Me_MeV * W_MeV)
-        v = pz_MeV / (Me_MeV * c)
+        v = pz_MeV / Me_MeV
     elif W_MeV == Me_MeV:
         # Частица покоится, импульс нулевой
         pz_MeV = 0
