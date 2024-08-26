@@ -31,7 +31,7 @@ def longitudinal_momentum(W_MeV, Me_MeV, c):
         pz_MeV = 0
         v = 0
     elif W_MeV > Me_MeV and W_MeV / Me_MeV < 100:
-        # Релятивистский случай: вычисляем γ через скорость
+        # Релятивистский случай
         gamma = W_MeV / Me_MeV
         v = c * np.sqrt(1 - 1 / gamma**2)
         gamma = 1 / np.sqrt(1 - (v / c)**2)
@@ -174,7 +174,7 @@ def plot_all_graphs(z, r_mid, energy_profile, pz_profile, r_mid_with_pz, v_profi
     plt.show()
 
 # Основной блок
-r0 = 1e-9  # размер пакета в м
+r0 = 1e-6  # размер пакета в м
 n = 3
 l = 1
 step_of_z = (z[1] - z[0])
@@ -184,7 +184,7 @@ length = z[-1]
 pz_MeV, v = longitudinal_momentum(W_MeV, ME_MeV, c)
 
 # Увеличение шага интегрирования
-increase_factor = 4  # Увеличиваем шаг в 5 раз
+increase_factor = 4  # Увеличиваем шаг
 z_new = np.linspace(z[0], z[-1], len(z) // increase_factor)  # Новый массив z с увеличенным шагом
 
 # Интерполяция поля Ez для нового массива z
