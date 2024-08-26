@@ -184,7 +184,7 @@ length = z[-1]
 pz_MeV, v = longitudinal_momentum(W_MeV, ME_MeV, c)
 
 # Увеличение шага интегрирования
-increase_factor = 4  # Увеличиваем шаг
+increase_factor = 1  # Увеличиваем шаг
 z_new = np.linspace(z[0], z[-1], len(z) // increase_factor)  # Новый массив z с увеличенным шагом
 
 # Интерполяция поля Ez для нового массива z
