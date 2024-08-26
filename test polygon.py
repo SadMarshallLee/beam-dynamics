@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.constants as const
 from scipy import integrate as integ
+from scipy.interpolate import interp1d
 
 # Предварительно вычисляем константы
 HC_MeV_mm = 6.582 * 10**(-22) * 2.998 * 10**(11)  # Планк x скорость света в МэВ мм
@@ -21,16 +22,25 @@ t = 350e-12  # время
 
 # Функция для расчета продольного импульса и скорости
 def longitudinal_momentum(W_MeV, Me_MeV, c):
-    if W_MeV <= Me_MeV:
+    if W_MeV < Me_MeV:
+        # Энергия меньше энергии покоя, низкие скорости
         pz_MeV = np.sqrt(2 * Me_MeV * W_MeV)
         v = pz_MeV / (Me_MeV * c)
-    elif W_MeV <= 10 * Me_MeV:
-        under_sqrt = W_MeV**2 - Me_MeV**2
-        pz_MeV = np.sqrt(under_sqrt) if under_sqrt >= 0 else np.nan
-        v = np.sqrt(1 - (Me_MeV / W_MeV)**2) * c if under_sqrt >= 0 else np.nan
+    elif W_MeV == Me_MeV:
+        # Частица покоится, импульс нулевой
+        pz_MeV = 0
+        v = 0
+    elif W_MeV > Me_MeV and W_MeV / Me_MeV < 100:
+        # Релятивистский случай: вычисляем γ через скорость
+        gamma = W_MeV / Me_MeV
+        v = c * np.sqrt(1 - 1 / gamma**2)
+        gamma = 1 / np.sqrt(1 - (v / c)**2)
+        pz_MeV = gamma * Me_MeV * v / c
     else:
-        pz_MeV = np.sqrt(W_MeV**2 - Me_MeV**2)
+        # Ультрарелятивистский случай: W намного больше Me
+        pz_MeV = W_MeV / c
         v = c
+
     return pz_MeV, v
 
 # Функция для определения значения фундаментальной моды
@@ -97,7 +107,6 @@ def real_packet_width_with_pz(z_values, pz_profile, v_profile, r0, n, l):
     # Переводим pz из МэВ в эВ
     pz_profile_eV = pz_profile * 1e6
 
-    print("Значения new_z (в метрах):", new_z)
     ldb_values = [de_broglie_wavelength(pz) for pz in pz_profile_eV]
     rho_mid0 = rho_mid(r0, M)
     ksi = coherence_length(rho_mid0)  # начальная длина когерентности
@@ -174,19 +183,27 @@ length = z[-1]
 # Расчет импульса и скорости
 pz_MeV, v = longitudinal_momentum(W_MeV, ME_MeV, c)
 
+# Увеличение шага интегрирования
+increase_factor = 4  # Увеличиваем шаг в 5 раз
+z_new = np.linspace(z[0], z[-1], len(z) // increase_factor)  # Новый массив z с увеличенным шагом
+
+# Интерполяция поля Ez для нового массива z
+interp_func = interp1d(z, Ez, kind='linear')  # Интерполяционная функция
+Ez_new = interp_func(z_new)  # Новые значения Ez на новом массиве z
+
 if np.isnan(v) or v == 0:
     print("Ошибка: скорость v равна NaN или нулю.")
-    dE = energy_change_profile = pz_profile = v_profile = np.nan * np.ones_like(z)
+    dE = energy_change_profile = pz_profile = v_profile = np.nan * np.ones_like(z_new)
 else:
-    denominator = f * np.mean(z) / (2 * v) if v != 0 else 1
+    denominator = f * np.mean(z_new) / (2 * v) if v != 0 else 1
     T = np.sin(denominator) / denominator if denominator != 0 else 0
     
     try:
-        integral_result = integ.simps(Ez, z)
+        integral_result = integ.simps(Ez_new, z_new)
         dE = e * integral_result * T * np.cos(f * t + phi)
         
-        delta_z = (z[1] - z[0])
-        energy_profile = np.cumsum(Ez * delta_z) + W_MeV
+        delta_z = (z_new[1] - z_new[0])
+        energy_profile = np.cumsum(Ez_new * delta_z) + W_MeV
         
         energy_change_profile = energy_profile - W_MeV + dE
         pz_profile = np.array([longitudinal_momentum(E, ME_MeV, c)[0] for E in energy_profile])
@@ -194,10 +211,10 @@ else:
         
     except Exception as ex:
         print(f"Ошибка при вычислении интеграла: {ex}")
-        dE = energy_change_profile = pz_profile = v_profile = np.nan * np.ones_like(z)
+        dE = energy_change_profile = pz_profile = v_profile = np.nan * np.ones_like(z_new)
 
-r_mid = real_packet_width(z, W_MeV, r0, n, l)
-r_mid_with_pz = real_packet_width_with_pz(z, pz_profile, v_profile, r0, n, l)
+r_mid = real_packet_width(z_new, W_MeV, r0, n, l)
+r_mid_with_pz = real_packet_width_with_pz(z_new, pz_profile, v_profile, r0, n, l)
 
 # Построение общей картинки со всеми графиками (добавлен v_profile)
-plot_all_graphs(z, r_mid, energy_profile, pz_profile, r_mid_with_pz, v_profile)
+plot_all_graphs(z_new, r_mid, energy_profile, pz_profile, r_mid_with_pz, v_profile)
